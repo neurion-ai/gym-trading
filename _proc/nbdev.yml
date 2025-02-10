@@ -4,6 +4,6 @@ project:
 website:
   title: "gym-trading"
   site-url: "https://neurion-ai.github.io/gym-trading"
-  description: "Trading environments for Gymnasium library"
-  repo-branch: main
+  description: "Trading environments for Gymnasium"
+  repo-branch: develop
   repo-url: "https://github.com/neurion-ai/gym-trading"
