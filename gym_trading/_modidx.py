@@ -5,4 +5,4 @@ d = { 'settings': { 'branch': 'develop',
                 'doc_host': 'https://neurion-ai.github.io',
                 'git_url': 'https://github.com/neurion-ai/gym-trading',
                 'lib_path': 'gym_trading'},
-  'syms': {'gym_trading.core': {'gym_trading.core.foo': ('core.html#foo', 'gym_trading/core.py')}}}
+  'syms': {'gym_trading.core': {'gym_trading.core.foo': ('crypto.html#foo', 'gym_trading/core.py')}}}
