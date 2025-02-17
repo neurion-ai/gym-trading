@@ -4,12 +4,11 @@
 __all__ = ['CryptoTradingEnv']
 
 # %% ../nbs/03_crypto_env.ipynb 3
-import gymnasium as gym
-from gymnasium import spaces
-import numpy as np
-import pandas as pd
-from typing import Tuple, Optional, Union
-
+import gymnasium as gym  # Import the gymnasium library for creating the environment
+from gymnasium import spaces  # Import spaces for defining action and observation spaces
+import numpy as np  # Import numpy for numerical operations
+import pandas as pd  # Import pandas for handling data
+from typing import Tuple, Optional, Union  # Import typing for type annotations
 
 class CryptoTradingEnv(gym.Env):
     """
@@ -52,26 +51,26 @@ class CryptoTradingEnv(gym.Env):
         Raises:
             ValueError: If input data is invalid or required columns are missing.
         """
-        super().__init__()
+        super().__init__()  # Initialize the base gym environment
 
         if not isinstance(data, pd.DataFrame):
-            raise ValueError("Data must be a pandas DataFrame.")
+            raise ValueError("Data must be a pandas DataFrame.")  # Ensure data is a DataFrame
         if "close" not in data.columns:
-            raise ValueError("Data must contain a 'close' column for price data.")
+            raise ValueError("Data must contain a 'close' column for price data.")  # Ensure 'close' column exists
         if not all(feature in data.columns for feature in features):
-            raise ValueError("All features must be present in the data columns.")
+            raise ValueError("All features must be present in the data columns.")  # Ensure all features exist
         if lookback_window_size <= 0:
-            raise ValueError("lookback_window_size must be greater than 0.")
+            raise ValueError("lookback_window_size must be greater than 0.")  # Ensure lookback window size is positive
 
-        self.data = data
-        self.features = features
-        self.initial_balance = initial_balance
-        self.transaction_fee_percent = transaction_fee_percent
-        self.lookback_window_size = lookback_window_size
-        self.render_mode = render_mode
+        self.data = data  # Store the data
+        self.features = features  # Store the features
+        self.initial_balance = initial_balance  # Store the initial balance
+        self.transaction_fee_percent = transaction_fee_percent  # Store the transaction fee percentage
+        self.lookback_window_size = lookback_window_size  # Store the lookback window size
+        self.render_mode = render_mode  # Store the render mode
 
         # Action Space: 0 = Hold, 1 = Buy, 2 = Sell
-        self.action_space = spaces.Discrete(3)
+        self.action_space = spaces.Discrete(3)  # Define the action space
 
         # Observation Space: (lookback_window_size, num_features) + balance + holdings
         self.observation_space = spaces.Box(
@@ -79,13 +78,13 @@ class CryptoTradingEnv(gym.Env):
             high=np.inf,
             shape=(lookback_window_size, len(self.features) + 2),
             dtype=np.float32,
-        )
+        )  # Define the observation space
 
-        self.current_step = lookback_window_size
-        self.balance = initial_balance
-        self.holdings = 0.0  # Amount of crypto held
-        self.portfolio_value = initial_balance  # balance + (holdings * current_price)
-        self._done = False  # added to track done state explicitly
+        self.current_step = lookback_window_size  # Initialize the current step
+        self.balance = initial_balance  # Initialize the balance
+        self.holdings = 0.0  # Initialize the holdings
+        self.portfolio_value = initial_balance  # Initialize the portfolio value
+        self._done = False  # Initialize the done flag
 
     def _get_observation(self) -> np.ndarray:
         """
@@ -96,18 +95,18 @@ class CryptoTradingEnv(gym.Env):
         """
         window_data = self.data[self.features][
             self.current_step - self.lookback_window_size : self.current_step
-        ].values
+        ].values  # Get the window of data for the observation
 
         # Add balance and holdings to the observation.  Reshape for consistent shape.
-        balance_and_holdings = np.array([[self.balance, self.holdings]])
+        balance_and_holdings = np.array([[self.balance, self.holdings]])  # Create array for balance and holdings
         repeated_balance_holdings = np.repeat(
             balance_and_holdings, self.lookback_window_size, axis=0
-        )
+        )  # Repeat balance and holdings for each timestep in the window
         observation = np.concatenate(
             (window_data, repeated_balance_holdings), axis=1
-        )
+        )  # Concatenate window data with balance and holdings
 
-        return observation.astype(np.float32)
+        return observation.astype(np.float32)  # Return the observation as float32
 
     def _calculate_reward(self, action: int) -> float:
         """
@@ -119,11 +118,11 @@ class CryptoTradingEnv(gym.Env):
         Returns:
             float: The reward for the current step.  (Can be customized).
         """
-        current_price = self.data["close"][self.current_step]
-        previous_portfolio_value = self.portfolio_value
-        self.portfolio_value = self.balance + (self.holdings * current_price)
-        reward = self.portfolio_value - previous_portfolio_value
-        return reward
+        current_price = self.data["close"][self.current_step]  # Get the current price
+        previous_portfolio_value = self.portfolio_value  # Store the previous portfolio value
+        self.portfolio_value = self.balance + (self.holdings * current_price)  # Calculate the new portfolio value
+        reward = self.portfolio_value - previous_portfolio_value  # Calculate the reward as the change in portfolio value
+        return reward  # Return the reward
 
     def _execute_trade(self, action: int) -> None:
         """
@@ -133,20 +132,20 @@ class CryptoTradingEnv(gym.Env):
             action (int): The action taken (1 for buy, 2 for sell).
         """
 
-        current_price = self.data["close"][self.current_step]
+        current_price = self.data["close"][self.current_step]  # Get the current price
 
         if action == 1:  # Buy
-            affordable_amount = self.balance / current_price
-            cost = affordable_amount * current_price
-            fee = cost * self.transaction_fee_percent
-            if self.balance >= cost + fee:
-                self.balance -= cost + fee
-                self.holdings += affordable_amount * (1-self.transaction_fee_percent)
+            affordable_amount = self.balance / current_price  # Calculate the amount of crypto that can be bought
+            cost = affordable_amount * current_price  # Calculate the cost of the purchase
+            fee = cost * self.transaction_fee_percent  # Calculate the transaction fee
+            if self.balance >= cost + fee:  # Check if there is enough balance to cover the cost and fee
+                self.balance -= cost + fee  # Deduct the cost and fee from the balance
+                self.holdings += affordable_amount * (1-self.transaction_fee_percent)  # Update the holdings
 
         elif action == 2:  # Sell
-            fee = self.holdings * current_price * self.transaction_fee_percent
-            self.balance += self.holdings * current_price - fee
-            self.holdings = 0.0
+            fee = self.holdings * current_price * self.transaction_fee_percent  # Calculate the transaction fee
+            self.balance += self.holdings * current_price - fee  # Add the proceeds from the sale to the balance
+            self.holdings = 0.0  # Reset the holdings to zero
 
     def step(
         self, action: int
@@ -168,21 +167,21 @@ class CryptoTradingEnv(gym.Env):
         if self._done:
             # If the episode is already done, you can either reset it or raise an error.
             # Here we reset.  Alternatively, you can raise:  raise Exception("Episode already done")
-            return self.reset()[0], 0.0, True, False, {}
+            return self.reset()[0], 0.0, True, False, {}  # Reset the environment if the episode is done
         
         self._execute_trade(action)  # Execute the trade first
         reward = self._calculate_reward(action)  # Calculate reward *after* trade
 
-        self.current_step += 1
+        self.current_step += 1  # Move to the next step
         # Check if the episode is done (either end of data or out of money)
         self._done = (
             self.current_step >= len(self.data) - 1
             or self.balance <= 0
-        )
-        truncated = False
-        observation = self._get_observation()
-        info: dict = {}
-        return observation, reward, self._done, truncated, info  # type: ignore
+        )  # Set the done flag if the episode is finished
+        truncated = False  # Truncated is not used here
+        observation = self._get_observation()  # Get the next observation
+        info: dict = {}  # Additional info (empty in this case)
+        return observation, reward, self._done, truncated, info  # Return the step results
 
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[dict] = None
@@ -201,14 +200,14 @@ class CryptoTradingEnv(gym.Env):
         """
         super().reset(seed=seed)  # Call gym.Env's reset with the seed
 
-        self.current_step = self.lookback_window_size
-        self.balance = self.initial_balance
-        self.holdings = 0.0
-        self.portfolio_value = self.initial_balance
+        self.current_step = self.lookback_window_size  # Reset the current step
+        self.balance = self.initial_balance  # Reset the balance
+        self.holdings = 0.0  # Reset the holdings
+        self.portfolio_value = self.initial_balance  # Reset the portfolio value
         self._done = False  # Reset the done flag
-        observation = self._get_observation()
-        info: dict = {}
-        return observation, info
+        observation = self._get_observation()  # Get the initial observation
+        info: dict = {}  # Additional info (empty in this case)
+        return observation, info  # Return the reset results
 
     def render(self) -> None:
         """
@@ -219,8 +218,7 @@ class CryptoTradingEnv(gym.Env):
             print(
                 f"Step: {self.current_step}, Balance: {self.balance:.2f}, "
                 f"Holdings: {self.holdings:.4f}, Portfolio Value: {self.portfolio_value:.2f}"
-            )
-
+            )  # Print the current state for human rendering
 
 # Example Usage (and testing)
 if __name__ == "__main__":
@@ -232,7 +230,7 @@ if __name__ == "__main__":
             "volume": np.random.rand(num_days) * 1000 + 500,  # Example volume
         }
     )
-    data["returns"] = data["close"].pct_change()
+    data["returns"] = data["close"].pct_change()  # Calculate returns
 
     # Create and use the environment
     env = CryptoTradingEnv(
@@ -244,14 +242,15 @@ if __name__ == "__main__":
     )
 
     # Basic interaction loop
-    obs, _ = env.reset()
+    obs, _ = env.reset()  # Reset the environment
     n_steps = 50
     for _ in range(n_steps):
         action = env.action_space.sample()  # Replace with your agent's action
-        obs, reward, terminated, truncated, info = env.step(action)
-        done = terminated or truncated
-        env.render()
+        obs, reward, terminated, truncated, info = env.step(action)  # Take a step
+        done = terminated or truncated  # Check if the episode is done
+        env.render()  # Render the environment
         if done:
             print("Episode finished")
             obs, _ = env.reset()  # Reset if the episode is finished
     print("Interaction loop finished.")
+
